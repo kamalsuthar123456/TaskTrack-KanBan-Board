@@ -31,7 +31,7 @@ const columnConfig = {
     glowColor: 'hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]', // Amber glow
   },
   done: {
-    title: 'Completed',
+    title: 'Done',
     status: '',
     icon: (
       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
