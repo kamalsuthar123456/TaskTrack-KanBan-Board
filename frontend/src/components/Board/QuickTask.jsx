@@ -12,9 +12,9 @@ import { useBoardStore } from '@/state/boardStore';
 import { useToast } from '@/hooks/use-toast';
 
 const PRIORITIES = [
-  { key: 'low', label: 'Low', color: 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30' },
-  { key: 'medium', label: 'Medium', color: 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-amber-500/30' },
-  { key: 'high', label: 'High', color: 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border-rose-500/30' },
+  { key: 'low', label: 'Low priority', color: 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30' },
+  { key: 'medium', label: 'Semi priority', color: 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-amber-500/30' },
+  { key: 'high', label: 'High priority', color: 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border-rose-500/30' },
 ];
 
 export default function QuickTask() {
