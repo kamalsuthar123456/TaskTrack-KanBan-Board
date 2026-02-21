@@ -9,7 +9,6 @@ export default function LandingPage() {
     <div className="min-h-screen grid-bg">
       <div className="mx-auto w-full max-w-6xl px-4 py-16">
         <div className="text-center">
-          {/* Logo section removed */}
 
           <h1 className="mt-12 font-display text-5xl sm:text-6xl lg:text-7xl">
             Smarter Workflow.
@@ -48,7 +47,8 @@ export default function LandingPage() {
               </div>
               <h3 className="mt-6 font-display text-xl">Instant Updates</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                See every change instantly with optimistic updates that keep your workflow smooth and responsive.              </p>
+                See every change instantly with optimistic updates that keep your workflow smooth and responsive.
+              </p>
             </div>
 
             <div className="glass noise rounded-3xl p-8 ring-gradient shadow-soft">
@@ -57,7 +57,8 @@ export default function LandingPage() {
               </div>
               <h3 className="mt-6 font-display text-xl">Auto Rollback</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Errors? No problem. Automatically restore the last stable state with intelligent failure handling.              </p>
+                Errors? No problem. Automatically restore the last stable state with intelligent failure handling.
+              </p>
             </div>
 
             <div className="glass noise rounded-3xl p-8 ring-gradient shadow-soft sm:col-span-2 lg:col-span-1">
@@ -66,7 +67,8 @@ export default function LandingPage() {
               </div>
               <h3 className="mt-6 font-display text-xl">Drag & Drop</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Move tasks across stages with a smooth, intuitive drag-and-drop interface.              </p>
+                Move tasks across stages with a smooth, intuitive drag-and-drop interface.
+              </p>
             </div>
           </div>
         </div>

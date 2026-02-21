@@ -1,5 +1,5 @@
 export default function BoardHeader({ counts }) {
-  const pendingCount = 0; // You can connect this to your store if needed
+  const pendingCount = 0;
 
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">

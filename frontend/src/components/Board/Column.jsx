@@ -15,7 +15,7 @@ const columnConfig = {
     iconBg: 'bg-blue-500/10',
     iconColor: 'text-blue-400',
     iconBorder: 'border-blue-500/10',
-    glowColor: 'hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]', // Blue glow
+    glowColor: 'hover:shadow-[0_0_30px_rgba(59,130,246,0.15)]',
   },
   inprogress: {
     title: 'In Progress',
@@ -28,7 +28,7 @@ const columnConfig = {
     iconBg: 'bg-amber-500/10',
     iconColor: 'text-amber-400',
     iconBorder: 'border-amber-500/10',
-    glowColor: 'hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]', // Amber glow
+    glowColor: 'hover:shadow-[0_0_30px_rgba(245,158,11,0.15)]',
   },
   done: {
     title: 'Done',
@@ -41,7 +41,7 @@ const columnConfig = {
     iconBg: 'bg-green-500/10',
     iconColor: 'text-green-400',
     iconBorder: 'border-green-500/10',
-    glowColor: 'hover:shadow-[0_0_30px_rgba(34,197,94,0.15)]', // Green glow
+    glowColor: 'hover:shadow-[0_0_30px_rgba(34,197,94,0.15)]',
   },
 };
 
@@ -79,9 +79,6 @@ export default function Column({ id, tasks }) {
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-[28px] border-2 border-dashed border-white/5 bg-black/10 py-20 px-6 text-center transition-all hover:bg-black/20 hover:border-white/10 group/empty">
-              {/* <div className="mb-4 h-16 w-16 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center opacity-20 group-hover/empty:scale-110 group-hover/empty:opacity-30 transition-all duration-500">
-                <Plus className="h-8 w-8" />
-              </div> */}
               <p className="text-sm font-bold text-muted-foreground/40 tracking-wide">Add First Task</p>
             </div>
           ) : (
