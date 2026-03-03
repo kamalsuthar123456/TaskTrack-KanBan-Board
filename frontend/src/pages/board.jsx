@@ -22,40 +22,31 @@ import { useToast } from '@/hooks/use-toast';
 
 const COLUMNS = ['todo', 'inprogress', 'done'];
 
+const COLUMN_LABELS = {
+  todo: 'To Do',
+  inprogress: 'In Progress',
+  done: 'Done',
+};
+
 export default function BoardPage() {
   const [, setLocation] = useLocation();
   const [activeId, setActiveId] = useState(null);
-  
+
   const tasks = useBoardStore((state) => state.tasks);
   const moveTask = useBoardStore((state) => state.moveTask);
-  
-  const counts = useMemo(() => {
-    return {
-      todo: tasks.filter((t) => t.column === 'todo').length,
-      inprogress: tasks.filter((t) => t.column === 'inprogress').length,
-      done: tasks.filter((t) => t.column === 'done').length,
-    };
-  }, [tasks]);
-  
+
+  const counts = useMemo(() => ({
+    todo: tasks.filter((t) => t.column === 'todo').length,
+    inprogress: tasks.filter((t) => t.column === 'inprogress').length,
+    done: tasks.filter((t) => t.column === 'done').length,
+  }), [tasks]);
+
   const { toast } = useToast();
 
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: {
-        distance: 10,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
-    }),
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
+    useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   useEffect(() => {
@@ -65,6 +56,9 @@ export default function BoardPage() {
   }, [setLocation]);
 
   const handleDragStart = (event) => {
+    const task = tasks.find((t) => t.id === event.active.id);
+    // ✅ Block drag if task is currently syncing
+    if (!task || task.pending) return;
     setActiveId(event.active.id);
   };
 
@@ -75,24 +69,29 @@ export default function BoardPage() {
     if (!over) return;
 
     const taskId = active.id;
+    const task = tasks.find((t) => t.id === taskId);
+
+    // ✅ Guard 1: task not found or still pending — do nothing
+    if (!task || task.pending) return;
+
     let targetColumn = over.id;
 
+    // ✅ Guard 2: if dropped on a task card (not a column), resolve its column
     if (!COLUMNS.includes(targetColumn)) {
       const overTask = tasks.find((t) => t.id === over.id);
-      if (overTask) {
-        targetColumn = overTask.column;
-      }
+      if (!overTask) return; // dropped on unknown target
+      targetColumn = overTask.column;
     }
 
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task || task.column === targetColumn) return;
+    // ✅ Guard 3: same column — no-op
+    if (task.column === targetColumn) return;
 
     const res = await moveTask(taskId, targetColumn);
 
     if (res.ok) {
       toast({
         title: 'Task moved',
-        description: `Moved to ${targetColumn === 'inprogress' ? 'In Progress' : targetColumn === 'todo' ? 'To Do' : 'Done'}`,
+        description: `Moved to ${COLUMN_LABELS[targetColumn]}`,
       });
     } else {
       toast({
@@ -107,12 +106,15 @@ export default function BoardPage() {
     setActiveId(null);
   };
 
-  const activeTask = activeId ? tasks.find((t) => t.id === activeId) : null;
+  // ✅ Only show overlay for non-pending tasks
+  const activeTask = activeId
+    ? tasks.find((t) => t.id === activeId && !t.pending)
+    : null;
 
   return (
     <div className="min-h-screen grid-bg">
       <Navbar />
-      
+
       <Container>
         <BoardHeader counts={counts} />
 

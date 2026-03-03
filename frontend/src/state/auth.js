@@ -24,12 +24,18 @@ export const auth = {
   getUser() {
     return read();
   },
-  login(identifier) {
+  // ✅ Now accepts token too and stores it
+  login(identifier, token = null) {
     const user = { identifier: (identifier || "").trim(), loggedInAt: Date.now() };
     write(user);
+    if (token) localStorage.setItem("token", token);
     return user;
   },
   logout() {
     localStorage.removeItem(KEY);
+    localStorage.removeItem("token");
+  },
+  getToken() {
+    return localStorage.getItem("token");
   },
 };

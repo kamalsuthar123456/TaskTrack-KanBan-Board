@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 const LATENCY_MS = 1200;
-const FAILURE_RATE = 0.15;
+const FAILURE_RATE = 0.05;
 
 function uid() {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -15,7 +15,7 @@ function sleep(ms) {
 async function mockApi() {
   await sleep(LATENCY_MS);
   if (Math.random() < FAILURE_RATE) {
-    return { ok: false, error: "Network error occurred" };
+    return { ok: false, error: 'Network error occurred' };
   }
   return { ok: true };
 }
@@ -24,129 +24,114 @@ export const useBoardStore = create(
   persist(
     (set, get) => ({
       tasks: [],
-      pendingCount: 0,
 
       addTask: async (title, priority = 'low') => {
-        const prevState = { 
-          tasks: [...get().tasks], 
-          pendingCount: get().pendingCount 
-        };
-        
+        if (typeof title !== 'string' || !title.trim()) {
+          return { ok: false, error: 'Invalid title' };
+        }
+
+        const prevTasks = get().tasks;
+
         const task = {
           id: uid(),
-          title,
+          title: title.trim(),
           priority,
           column: 'todo',
-          createdAt: Date.now(),
+          createdAt: Date.now(),   // ✅ set on creation
+          updatedAt: Date.now(),   // ✅ same as createdAt initially
           pending: true,
         };
 
-        set({ 
-          tasks: [task, ...get().tasks],
-          pendingCount: get().pendingCount + 1 
-        });
+        set({ tasks: [task, ...prevTasks] });
 
         const res = await mockApi();
 
         if (!res.ok) {
-          set(prevState);
+          set({ tasks: prevTasks });
           return res;
         }
 
-        set({ 
+        set({
           tasks: get().tasks.map((t) =>
             t.id === task.id ? { ...t, pending: false } : t
           ),
-          pendingCount: Math.max(0, get().pendingCount - 1)
         });
 
         return res;
       },
 
       moveTask: async (id, column) => {
-        const prevState = { 
-          tasks: [...get().tasks], 
-          pendingCount: get().pendingCount 
-        };
+        const prevTasks = get().tasks;
 
-        set({ 
-          tasks: get().tasks.map((t) =>
-            t.id === id ? { ...t, column, pending: true } : t
+        set({
+          tasks: prevTasks.map((t) =>
+            t.id === id
+              ? { ...t, column, updatedAt: Date.now(), pending: true }  // ✅ update timestamp on move
+              : t
           ),
-          pendingCount: get().pendingCount + 1
         });
 
         const res = await mockApi();
 
         if (!res.ok) {
-          set(prevState);
+          set({ tasks: prevTasks });
           return res;
         }
 
-        set({ 
+        set({
           tasks: get().tasks.map((t) =>
             t.id === id ? { ...t, pending: false } : t
           ),
-          pendingCount: Math.max(0, get().pendingCount - 1)
         });
 
         return res;
       },
 
       deleteTask: async (id) => {
-        const prevState = { 
-          tasks: [...get().tasks], 
-          pendingCount: get().pendingCount 
-        };
+        const prevTasks = get().tasks;
 
-        set({ 
-          tasks: get().tasks.map((t) =>
+        set({
+          tasks: prevTasks.map((t) =>
             t.id === id ? { ...t, pending: true } : t
           ),
-          pendingCount: get().pendingCount + 1
         });
-
-        setTimeout(() => {
-          set({ tasks: get().tasks.filter((t) => t.id !== id) });
-        }, 150);
 
         const res = await mockApi();
 
         if (!res.ok) {
-          set(prevState);
+          set({ tasks: prevTasks });
           return res;
         }
 
-        set({ pendingCount: Math.max(0, get().pendingCount - 1) });
+        set({
+          tasks: get().tasks.filter((t) => t.id !== id),
+        });
 
         return res;
       },
 
       updateTask: async (id, updates) => {
-        const prevState = { 
-          tasks: [...get().tasks], 
-          pendingCount: get().pendingCount 
-        };
+        const prevTasks = get().tasks;
 
-        set({ 
-          tasks: get().tasks.map((t) =>
-            t.id === id ? { ...t, ...updates, pending: true } : t
+        set({
+          tasks: prevTasks.map((t) =>
+            t.id === id
+              ? { ...t, ...updates, updatedAt: Date.now(), pending: true }  // ✅ update timestamp on edit
+              : t
           ),
-          pendingCount: get().pendingCount + 1
         });
 
         const res = await mockApi();
 
         if (!res.ok) {
-          set(prevState);
+          set({ tasks: prevTasks });
           return res;
         }
 
-        set({ 
+        set({
           tasks: get().tasks.map((t) =>
             t.id === id ? { ...t, pending: false } : t
           ),
-          pendingCount: Math.max(0, get().pendingCount - 1)
         });
 
         return res;
@@ -154,7 +139,21 @@ export const useBoardStore = create(
     }),
     {
       name: 'krypton-kanban-storage',
-      partialize: (state) => ({ tasks: state.tasks }),
+
+      partialize: (state) => ({
+        tasks: state.tasks.filter((t) => !t.pending),
+      }),
+
+      merge: (persisted, current) => ({
+        ...current,
+        tasks: (persisted?.tasks ?? []).filter(
+          (t) =>
+            t &&
+            typeof t.id === 'string' &&
+            typeof t.title === 'string' &&
+            typeof t.column === 'string'
+        ),
+      }),
     }
   )
 );

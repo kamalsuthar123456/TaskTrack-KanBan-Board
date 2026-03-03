@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Clock } from 'lucide-react';
+import { GripVertical, Trash2, Clock, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBoardStore } from '@/state/boardStore';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,18 @@ const priorityConfig = {
   },
 };
 
+// ✅ Format timestamp → "3 Mar, 7:45 PM"
+function formatDateTime(ts) {
+  if (!ts) return null;
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(ts));
+}
+
 export default function TaskCard({ task }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -47,20 +59,17 @@ export default function TaskCard({ task }) {
   const handleDelete = async (e) => {
     e.stopPropagation();
     const res = await deleteTask(task.id);
-    
     if (res.ok) {
-      toast({
-        title: 'Task deleted',
-        description: 'The task has been removed.',
-      });
+      toast({ title: 'Task deleted', description: 'The task has been removed.' });
     } else {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to delete',
-        description: res.error,
-      });
+      toast({ variant: 'destructive', title: 'Failed to delete', description: res.error });
     }
   };
+
+  // ✅ Show updatedAt if different from createdAt, else show createdAt
+  const isUpdated = task.updatedAt && task.updatedAt !== task.createdAt;
+  const displayTs  = task.updatedAt || task.createdAt;
+  const displayLabel = isUpdated ? 'Updated' : 'Added';
 
   return (
     <div
@@ -87,10 +96,10 @@ export default function TaskCard({ task }) {
           <p className="text-[15px] leading-relaxed break-words font-medium text-foreground/90 group-hover:text-foreground transition-colors mb-3">
             {task.title}
           </p>
-          
+
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${priority.bg} ${priority.text} ${priority.border} transition-all hover:scale-105 hover:brightness-125`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${priority.dot}`}></span>
+              <span className={`h-1.5 w-1.5 rounded-full ${priority.dot}`} />
               {task.priority}
             </span>
             {task.pending && (
@@ -112,10 +121,12 @@ export default function TaskCard({ task }) {
         </Button>
       </div>
 
+      {/* ✅ Bottom bar — date/time instead of Task ID */}
       <div className="mt-5 flex items-center justify-between relative z-10 border-t border-white/5 pt-4">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground/40 tracking-wider">
-          <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
-          Task Id: {task.id.slice(0, 8)}
+        <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/40 tracking-wide">
+          <CalendarDays className="h-3 w-3 shrink-0" />
+          <span className="text-muted-foreground/30">{displayLabel}</span>
+          <span>{formatDateTime(displayTs)}</span>
         </div>
         <div className="h-7 w-7 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary group-hover:shadow-lg group-hover:shadow-primary/30 transition-all duration-300">
           <GripVertical className="h-3.5 w-3.5" />
@@ -124,4 +135,3 @@ export default function TaskCard({ task }) {
     </div>
   );
 }
-
