@@ -1,118 +1,129 @@
 import { useState } from 'react';
-import { Plus, ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Plus, ChevronDown, X } from 'lucide-react';
+import { Button }   from '@/components/ui/button';
+import { Input }    from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useBoardStore } from '@/state/boardStore';
-import { useToast } from '@/hooks/use-toast';
+import { useBoardStore }         from '@/state/boardStore';
+import { useToast }              from '@/hooks/use-toast';
+import { PRIORITY_COLORS_LIGHT } from '@/constants/priority';
 
 const PRIORITIES = [
-  { key: 'low', label: 'Low priority', color: 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30' },
-  { key: 'medium', label: 'Semi priority', color: 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border-amber-500/30' },
-  { key: 'high', label: 'High priority', color: 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border-rose-500/30' },
+  { key: 'low',      label: 'Low'      },
+  { key: 'medium',   label: 'Medium'   },
+  { key: 'high',     label: 'High'     },
+  { key: 'critical', label: 'Critical' },
 ];
 
-export default function QuickTask() {
-  const [title, setTitle] = useState('');
+export default function QuickTask({ onClose }) {
+  const [title,    setTitle]    = useState('');
   const [priority, setPriority] = useState('low');
-  const addTask = useBoardStore((state) => state.addTask);
+  const addTask   = useBoardStore(state => state.addTask);
   const { toast } = useToast();
 
-  const currentPriorityObj = PRIORITIES.find(p => p.key === priority);
+  const currentPriority = PRIORITIES.find(p => p.key === priority);
+
+  const normalizedKey = priority.charAt(0).toUpperCase() + priority.slice(1).toLowerCase();
+  const colorClass    = PRIORITY_COLORS_LIGHT[normalizedKey] || "text-gray-500 bg-gray-100 border-gray-200";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim()) {
-      toast({ 
-        title: 'Title required', 
-        description: 'Type a task name to add it.' 
-      });
+      toast({ title: 'Title required', description: 'Type a task name to add it.' });
       return;
     }
-
     const res = await addTask(title.trim(), priority);
-    
     if (res.ok) {
-      toast({
-        title: 'Task added',
-        description: 'Your task has been created successfully.',
-      });
+      toast({ title: 'Task added', description: 'Your task has been created successfully.' });
       setTitle('');
       setPriority('low');
     } else {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to add task',
-        description: res.error || 'Please try again.',
-      });
+      toast({ variant: 'destructive', title: 'Failed to add task', description: res.error || 'Please try again.' });
     }
   };
 
   return (
-    <div className="glass noise relative rounded-[32px] p-6 sm:p-8 ring-gradient shadow-soft overflow-hidden group">
-      <div className="absolute -top-12 -right-12 p-8 opacity-[0.03] pointer-events-none group-hover:opacity-[0.07] transition-all duration-700 rotate-12 group-hover:rotate-0 scale-150">
-        <svg className="h-48 w-48" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M10 3H3v7h7V3zm11 0h-7v7h7V3zm0 11h-7v7h7v-7zm-11 0H3v7h7v-7z"/>
-        </svg>
-      </div>
+    <div className="relative rounded-2xl bg-white border border-[#E4E6EF] p-6 sm:p-7 shadow-[0_4px_24px_rgba(0,0,0,0.07)] overflow-hidden">
 
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end">
+      {/* Subtle purple top accent */}
+      <div className="absolute inset-x-0 top-0 h-0.5 rounded-t-2xl bg-gradient-to-r from-[#5243F0] via-[#8B5CF6] to-[#5243F0]" />
+
+      {/* Close button */}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 h-8 w-8 rounded-xl bg-[#F4F5F7] border border-[#E4E6EF] grid place-items-center text-[#8E92A4] hover:text-[#1B1C22] hover:bg-[#EDEEF3] transition-all"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+
+      <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end">
         <div className="flex-1 space-y-4">
+
           <div>
-            <h2 className="font-display text-xl font-bold">Add New Task</h2>
-            <p className="text-sm text-muted-foreground">Add tasks to your workflow with zero latency.</p>
+            <h2 className="font-display text-xl font-bold text-[#1B1C22]">Add New Task</h2>
+            <p className="text-sm text-[#8E92A4]">Add tasks to your workflow with zero latency.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
+
+            {/* Task title input */}
             <div className="flex-1">
               <Input
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={e => setTitle(e.target.value)}
                 placeholder="Capture your next big idea..."
-                className="h-14 w-full rounded-2xl bg-black/40 border-white/10 focus-visible:ring-primary focus-visible:bg-black/60 transition-all text-base px-6"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSubmit(e);
-                }}
+                className="h-12 w-full rounded-xl bg-[#F4F5F7] border-[#E4E6EF] text-[#1B1C22] placeholder:text-[#B0B4C8] focus-visible:border-[#5243F0] focus-visible:ring-[3px] focus-visible:ring-[#5243F0]/10 text-sm px-4"
+                onKeyDown={e => { if (e.key === 'Enter') handleSubmit(e); }}
               />
             </div>
-            
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
+                <Button
                   type="button"
-                  variant="secondary" 
-                  className={`h-14 w-full sm:w-[150px] rounded-2xl border ${currentPriorityObj.color} transition-all font-bold tracking-wide`}
+                  variant="outline"
+                  className={`h-12 w-full sm:w-[148px] rounded-xl border font-semibold text-sm transition-all ${colorClass}`}
                 >
-                  {currentPriorityObj.label}
-                  <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                  {currentPriority.label}
+                  <ChevronDown className="ml-2 h-4 w-4 opacity-60" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[150px] rounded-2xl border-white/10 bg-black/95 backdrop-blur-2xl p-1.5 shadow-2xl">
-                {PRIORITIES.map((p) => (
-                  <DropdownMenuItem 
-                    key={p.key}
-                    className={`rounded-xl mb-1 last:mb-0 cursor-pointer ${p.color} focus:brightness-125 font-bold px-3 py-2`}
-                    onSelect={() => setPriority(p.key)}
-                  >
-                    {p.label}
-                  </DropdownMenuItem>
-                ))}
+              <DropdownMenuContent
+                align="end"
+                className="w-[148px] rounded-xl border-[#E4E6EF] bg-white shadow-[0_8px_32px_rgba(0,0,0,0.1)] p-1.5"
+              >
+                {PRIORITIES.map(p => {
+                  const nk  = p.key.charAt(0).toUpperCase() + p.key.slice(1).toLowerCase();
+                  const cls = PRIORITY_COLORS_LIGHT[nk] || "text-gray-500 bg-gray-100 border-gray-200";
+                  return (
+                    <DropdownMenuItem
+                      key={p.key}
+                      className={`rounded-lg mb-1 last:mb-0 cursor-pointer font-semibold px-3 py-2 text-sm border ${cls}`}
+                      onSelect={() => setPriority(p.key)}
+                    >
+                      {p.label}
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Submit */}
             <Button
               type="submit"
               disabled={!title.trim()}
-              className="h-14 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl shadow-primary/25 px-10 font-bold transition-all hover:scale-[1.02] active:scale-[0.98] border-t border-white/20"
+              className="h-12 rounded-xl bg-[#5243F0] hover:bg-[#4537D6] text-white px-8 font-bold text-sm shadow-[0_4px_14px_rgba(82,67,240,0.35)] hover:shadow-[0_4px_20px_rgba(82,67,240,0.45)] transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0"
             >
-              <Plus className="mr-2 h-5 w-5 stroke-[3]" />
+              <Plus className="mr-2 h-4 w-4 stroke-[2.5]" />
               Add Task
             </Button>
+
           </form>
         </div>
       </div>

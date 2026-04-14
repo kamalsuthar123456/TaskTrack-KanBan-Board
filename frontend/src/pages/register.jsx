@@ -4,39 +4,57 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, UserPlus, Check, X, WifiOff, Lock, Settings, Layers } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Input }    from "@/components/ui/input";
+import { Label }    from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { auth } from "@/state/auth";
-import ParticleField from "@/components/ParticleField";
-import TiltCard from "@/components/TiltCard";
+import { auth }     from "@/state/auth";
 
-const passwordRules = [
-  { id: "length",  label: "At least 8 characters",          test: p => p.length >= 8 },
-  { id: "upper",   label: "Uppercase & lowercase letters",  test: p => /[A-Z]/.test(p) && /[a-z]/.test(p) },
-  { id: "number",  label: "Contains a number",              test: p => /[0-9]/.test(p) },
-  { id: "special", label: "Contains a special character",   test: p => /[^A-Za-z0-9]/.test(p) },
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+const PASSWORD_RULES = [
+  { id: "length",  label: "At least 8 characters",         test: (p) => p.length >= 8                        },
+  { id: "upper",   label: "Uppercase & lowercase letters", test: (p) => /[A-Z]/.test(p) && /[a-z]/.test(p)  },
+  { id: "number",  label: "Contains a number",             test: (p) => /[0-9]/.test(p)                      },
+  { id: "special", label: "Contains a special character",  test: (p) => /[^A-Za-z0-9]/.test(p)              },
 ];
 
-const schema = z.object({
-  name: z.string().min(1, "Enter your name"),
-  email: z.string().min(1).email("Enter a valid email"),
-  password: z.string().min(8).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/).regex(/[^A-Za-z0-9]/),
-  confirmPassword: z.string().min(1),
-}).refine(d => d.password === d.confirmPassword, { message: "Passwords do not match", path: ["confirmPassword"] });
+const STRENGTH_META = [
+  null,
+  { label: "Weak",   bar: "bg-red-500",    text: "text-red-500"    },
+  { label: "Fair",   bar: "bg-orange-500", text: "text-orange-500" },
+  { label: "Good",   bar: "bg-yellow-500", text: "text-yellow-600" },
+  { label: "Strong", bar: "bg-green-500",  text: "text-green-600"  },
+];
 
-const features = [
-  { icon: WifiOff,  text: "Works seamlessly offline",   desc: "Full offline task management"   },
-  { icon: Lock,     text: "Stay logged in securely",    desc: "JWT-powered session management" },
-  { icon: Settings, text: "No complex setup required",  desc: "Start in under 30 seconds"      },
+const schema = z
+  .object({
+    name:            z.string().min(1, "Enter your name"),
+    email:           z.string().email("Enter a valid email"),
+    password:        z.string()
+      .min(8, "At least 8 characters")
+      .regex(/[A-Z]/, "Add an uppercase letter")
+      .regex(/[a-z]/, "Add a lowercase letter")
+      .regex(/[0-9]/, "Add a number")
+      .regex(/[^A-Za-z0-9]/, "Add a special character"),
+    confirmPassword: z.string().min(1, "Confirm your password"),
+  })
+  .refine(d => d.password === d.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+const FEATURES = [
+  { icon: WifiOff,  text: "Works seamlessly offline",  desc: "Full offline task management"   },
+  { icon: Lock,     text: "Stay logged in securely",   desc: "JWT-powered session management" },
+  { icon: Settings, text: "No complex setup required", desc: "Start in under 30 seconds"      },
 ];
 
 export default function RegisterPage() {
-  const [, setLocation] = useLocation();
-  const { toast } = useToast();
-  const [show, setShow] = useState(false);
+  const [, setLocation]             = useLocation();
+  const { toast }                   = useToast();
+  const [show, setShow]             = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]       = useState(false);
 
   const form = useForm({
     resolver: zodResolver(schema),
@@ -44,247 +62,293 @@ export default function RegisterPage() {
     mode: "onChange",
   });
 
-  const fv = form.watch();
-  const password = fv.password || "";
-  const ruleResults = passwordRules.map(r => ({ ...r, passed: r.test(password) }));
-  const strengthScore = ruleResults.filter(r => r.passed).length;
-  const allPassed = ruleResults.every(r => r.passed);
+  const fv             = form.watch();
+  const password       = fv.password || "";
+  const ruleResults    = PASSWORD_RULES.map(r => ({ ...r, passed: r.test(password) }));
+  const strengthScore  = ruleResults.filter(r => r.passed).length;
+  const allPassed      = strengthScore === PASSWORD_RULES.length;
   const passwordsMatch = fv.password === fv.confirmPassword && fv.confirmPassword?.length > 0;
-  const canSubmit = fv.name?.trim() && fv.email?.trim() && allPassed && passwordsMatch && !loading;
-
-  const strengthMeta = [
-    null,
-    { label: "Weak",   color: "bg-red-500",    text: "text-red-400"    },
-    { label: "Fair",   color: "bg-orange-500", text: "text-orange-400" },
-    { label: "Good",   color: "bg-yellow-500", text: "text-yellow-400" },
-    { label: "Strong", color: "bg-green-500",  text: "text-green-400"  },
-  ];
-  const sm = strengthMeta[strengthScore];
+  const canSubmit      = fv.name?.trim() && fv.email?.trim() && allPassed && passwordsMatch && !loading;
+  const sm             = STRENGTH_META[strengthScore];
 
   const onSubmit = async (values) => {
-    setLoading(true);
-    try {
-      const res = await fetch("http://192.168.56.1:5000/api/auth/register",{
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: values.name, email: values.email, password: values.password }),
+  setLoading(true);
+  try {
+    const res  = await fetch(`${API_URL}/auth/register`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: values.name.trim(), email: values.email.trim(), password: values.password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      // ── STEP 11a: registration failure = destructive ──────────────────
+      toast({
+        title:       "Registration failed",
+        description: data.message || "Something went wrong. Please try again.",
+        variant:     "destructive",
       });
-      const data = await res.json();
-      if (!res.ok) {
-        toast({ title: "Registration failed", description: data.message || "Something went wrong", variant: "destructive" });
-        return;
-      }
-      auth.login(data.user.email, data.token);
-      toast({ title: "Account created 🎉", description: `Welcome, ${data.user.name}!` });
-      setLocation("/board");
-    } catch {
-      toast({ title: "Connection Error", description: "Could not reach server.", variant: "destructive" });
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+    auth.login(data.token, data.user);
+    // ── STEP 11b: registration success = success ──────────────────────
+    toast({
+      title:       "Account created 🎉",
+      description: `Welcome aboard, ${data.user.name}! Your workspace is ready.`,
+      variant:     "success",
+    });
+    setLocation("/board");
+  } catch {
+    // ── STEP 11c: connection error = destructive ──────────────────────
+    toast({
+      title:       "Connection Error",
+      description: "Could not reach the server. Make sure the backend is running.",
+      variant:     "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
-    <div className="relative min-h-screen grid-bg overflow-hidden">
+    <div className="min-h-screen bg-[#F4F5F7] flex items-center justify-center px-4 py-10">
 
-      <div className="absolute inset-0"><ParticleField /></div>
-      <div className="absolute inset-0 perspective-grid opacity-40" />
-
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="glow-orb   absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-violet-700/20 blur-[80px]" />
-        <div className="glow-orb-2 absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-indigo-700/20 blur-[80px]" />
+      {/* Subtle background blobs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-32 -right-32 h-[500px] w-[500px] rounded-full bg-violet-200/40 blur-[100px]" />
+        <div className="absolute -bottom-32 -left-32 h-[400px] w-[400px] rounded-full bg-indigo-200/40 blur-[100px]" />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-10">
-        <div className="grid w-full gap-10 lg:grid-cols-2 lg:items-center">
+      <div className="relative z-10 mx-auto w-full max-w-5xl">
+        <div className="grid w-full gap-8 lg:grid-cols-2 lg:items-start">
 
-          {/* ── LEFT PANEL ── */}
-          <TiltCard className="hidden lg:block anim-slide-right delay-100">
-            <div className="spin-border relative rounded-3xl bg-[#080c1a]/80 p-8 backdrop-blur-2xl shadow-soft">
-              <div className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-br from-violet-600/8 via-transparent to-indigo-600/8" />
+          {/* ── LEFT: Feature Panel ── */}
+          <div className="hidden lg:block anim-slide-right delay-100">
+            <div className="relative overflow-hidden rounded-3xl bg-[#5243F0] p-8 shadow-[0_24px_64px_rgba(82,67,240,0.35)]">
+              <div className="pointer-events-none absolute -top-20 -right-20 h-64 w-64 rounded-full bg-white/10" />
+              <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-white/10" />
 
+              {/* Logo */}
               <div className="relative flex items-center gap-4">
-                <div className="spin-border float-anim relative grid h-16 w-16 place-items-center rounded-2xl bg-violet-950/80">
-                  <Layers className="icon-glow h-8 w-8 text-violet-300" strokeWidth={1.5} />
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/20 ring-1 ring-white/30">
+                  <Layers className="h-7 w-7 text-white" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h2 className="shimmer-text font-display text-4xl font-black leading-none tracking-tight">
-                    Your Workspace
-                  </h2>
-                  <p className="mt-1 text-sm text-white/40">Start organizing tasks in seconds.</p>
+                  <h2 className="text-3xl font-black leading-none tracking-tight text-white">Your Workspace</h2>
+                  <p className="mt-1 text-sm text-white/60">Start organizing tasks in seconds.</p>
                 </div>
               </div>
 
-              <div className="mt-8 grid gap-2">
-                {features.map(({ icon: Icon, text, desc }, i) => (
-                  <div
-                    key={text}
-                    className={`feature-row anim-slide-right delay-${(i + 2) * 100} flex items-center gap-4 rounded-2xl border border-white/5 bg-white/2 p-4`}
-                  >
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20">
-                      <Icon className="h-5 w-5 text-violet-400" />
+              {/* Features */}
+              <div className="relative mt-8 grid gap-3">
+                {FEATURES.map(({ icon: Icon, text, desc }) => (
+                  <div key={text} className="flex items-center gap-4 rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/20">
+                      <Icon className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white/85">{text}</p>
-                      <p className="text-xs text-white/35 mt-0.5">{desc}</p>
+                      <p className="text-sm font-semibold text-white">{text}</p>
+                      <p className="mt-0.5 text-xs text-white/55">{desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Floating stat chips */}
-              <div className="mt-8 flex gap-2">
+              {/* Emoji chips */}
+              <div className="relative mt-8 flex gap-2">
                 {[["🔥", "Tasks"], ["⚡", "Fast"], ["🔒", "Secure"]].map(([emoji, label]) => (
-                  <div key={label} className="float-anim flex-1 rounded-xl border border-white/8 bg-white/3 p-3 text-center">
+                  <div key={label} className="flex-1 rounded-xl bg-white/10 p-3 text-center">
                     <div className="text-lg">{emoji}</div>
-                    <div className="text-[10px] text-white/40 mt-0.5">{label}</div>
+                    <div className="mt-0.5 text-[10px] text-white/60">{label}</div>
                   </div>
                 ))}
               </div>
             </div>
-          </TiltCard>
+          </div>
 
-          {/* ── RIGHT PANEL ── */}
-          <TiltCard className="anim-slide-up delay-200">
-            <div className="spin-border relative rounded-3xl bg-[#080c1a]/90 p-7 backdrop-blur-2xl shadow-soft">
-              <div className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-b from-violet-500/5 to-transparent" />
+          {/* ── RIGHT: Register Form ── */}
+          <div className="anim-slide-up delay-200">
+            <div className="rounded-3xl border border-[#E4E6EF] bg-white p-8 shadow-[0_8px_40px_rgba(0,0,0,0.08)]">
 
-              <div className="relative">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h1 className="shimmer-text font-display text-4xl font-black tracking-tight">Register</h1>
-                    <p className="mt-1.5 text-sm text-white/40">Create your account to start managing tasks instantly.</p>
-                  </div>
-                  <button onClick={() => setLocation("/")}
-                    className="rounded-xl border border-white/8 bg-white/4 px-4 py-2 text-xs text-white/50 transition-all hover:bg-white/8 hover:text-white">
-                    ← Back
-                  </button>
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h1 className="text-3xl font-black tracking-tight text-[#1B1C22]">Create account</h1>
+                  <p className="mt-1.5 text-sm text-[#8E92A4]">Join your team and start managing tasks today.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLocation("/")}
+                  className="rounded-xl border border-[#E4E6EF] bg-[#F4F5F7] px-4 py-2 text-xs font-medium text-[#8E92A4] transition-all hover:border-[#5243F0] hover:text-[#5243F0]"
+                >
+                  ← Back
+                </button>
+              </div>
+
+              <form onSubmit={form.handleSubmit(onSubmit)} className="mt-7 grid gap-4" noValidate>
+
+                {/* Name */}
+                <div className="grid gap-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#8E92A4]">Full Name</Label>
+                  <Input
+                    autoComplete="name"
+                    placeholder="Kamal Suthar"
+                    className="h-12 rounded-xl border-[#E4E6EF] bg-[#F4F5F7] text-[#1B1C22] placeholder:text-[#B0B4C8] focus-visible:border-[#5243F0] focus-visible:ring-[3px] focus-visible:ring-[#5243F0]/10"
+                    {...form.register("name")}
+                  />
+                  {form.formState.errors.name && (
+                    <p className="text-xs text-red-500">{form.formState.errors.name.message}</p>
+                  )}
                 </div>
 
-                <form onSubmit={form.handleSubmit(onSubmit)} className="mt-7 grid gap-4">
+                {/* Email */}
+                <div className="grid gap-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#8E92A4]">Email Address</Label>
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    placeholder="kamal008@example.com"
+                    className="h-12 rounded-xl border-[#E4E6EF] bg-[#F4F5F7] text-[#1B1C22] placeholder:text-[#B0B4C8] focus-visible:border-[#5243F0] focus-visible:ring-[3px] focus-visible:ring-[#5243F0]/10"
+                    {...form.register("email")}
+                  />
+                  {form.formState.errors.email && (
+                    <p className="text-xs text-red-500">{form.formState.errors.email.message}</p>
+                  )}
+                </div>
 
-                  {/* Name */}
-                  <div className="anim-slide-up delay-200 grid gap-1.5">
-                    <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/40">Name</Label>
-                    <Input id="name" placeholder="e.g. Kamal"
-                      className="glow-input h-12 rounded-xl border-white/8 bg-white/4 text-white placeholder:text-white/20 focus-visible:border-violet-500/40 focus-visible:ring-0"
-                      {...form.register("name")} />
-                    {form.formState.errors.name?.message && (
-                      <p className="text-xs text-red-400">{String(form.formState.errors.name.message)}</p>
-                    )}
+                {/* Password */}
+                <div className="grid gap-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#8E92A4]">Password</Label>
+                  <div className="relative">
+                    <Input
+                      type={show ? "text" : "password"}
+                      autoComplete="new-password"
+                      placeholder="password"
+                      className="h-12 rounded-xl border-[#E4E6EF] bg-[#F4F5F7] pr-12 text-[#1B1C22] placeholder:text-[#B0B4C8] focus-visible:border-[#5243F0] focus-visible:ring-[3px] focus-visible:ring-[#5243F0]/10"
+                      {...form.register("password")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShow(s => !s)}
+                      aria-label={show ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#B0B4C8] transition-colors hover:text-[#5243F0]"
+                    >
+                      {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
 
-                  {/* Email */}
-                  <div className="anim-slide-up delay-300 grid gap-1.5">
-                    <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/40">Email</Label>
-                    <Input id="email" placeholder="kamal@email.com"
-                      className="glow-input h-12 rounded-xl border-white/8 bg-white/4 text-white placeholder:text-white/20 focus-visible:border-violet-500/40 focus-visible:ring-0"
-                      {...form.register("email")} />
-                    {form.formState.errors.email?.message && (
-                      <p className="text-xs text-red-400">{String(form.formState.errors.email.message)}</p>
-                    )}
-                  </div>
-
-                  {/* Password */}
-                  <div className="anim-slide-up delay-400 grid gap-1.5">
-                    <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/40">Password</Label>
-                    <div className="relative">
-                      <Input id="password" type={show ? "text" : "password"} placeholder="••••••••"
-                        className="glow-input h-12 rounded-xl border-white/8 bg-white/4 text-white placeholder:text-white/20 pr-12 focus-visible:border-violet-500/40 focus-visible:ring-0"
-                        {...form.register("password")} />
-                      <button type="button" onClick={() => setShow(s => !s)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-white/25 transition-all hover:text-white/60">
-                        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-
-                    {password.length > 0 && (
-                      <div className="grid gap-2 rounded-xl border border-white/6 bg-white/2 p-3">
-                        {/* Strength bar */}
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-1 gap-1">
-                            {[1,2,3,4].map(n => (
-                              <div key={n}
-                                className={`h-1 flex-1 rounded-full transition-all duration-500 ${n <= strengthScore && sm ? sm.color : "bg-white/8"}`} />
-                            ))}
-                          </div>
-                          {sm && <span className={`text-[10px] font-bold uppercase ${sm.text}`}>{sm.label}</span>}
-                        </div>
-                        {/* Rules */}
-                        <div className="grid grid-cols-2 gap-1">
-                          {ruleResults.map(rule => (
-                            <div key={rule.id} className="flex items-center gap-1.5 text-[11px]">
-                              <span className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full transition-all duration-300 ${rule.passed ? "bg-green-500/25 text-green-400" : "bg-white/5 text-white/25"}`}>
-                                {rule.passed
-                                  ? <Check className="h-2 w-2" strokeWidth={3} />
-                                  : <X className="h-2 w-2" strokeWidth={3} />}
-                              </span>
-                              <span className={rule.passed ? "text-green-400" : "text-white/35"}>{rule.label}</span>
-                            </div>
-                          ))}
-                        </div>
+                  {/* Strength indicator */}
+                  {password.length > 0 && (
+                    <div className="mt-1 space-y-2">
+                      {/* Strength bar */}
+                      <div className="flex gap-1 h-1.5">
+                        {[1, 2, 3, 4].map(i => (
+                          <div
+                            key={i}
+                            className={`flex-1 rounded-full transition-all duration-300 ${
+                              i <= strengthScore ? sm?.bar ?? "bg-gray-300" : "bg-[#E4E6EF]"
+                            }`}
+                          />
+                        ))}
                       </div>
-                    )}
-                  </div>
-
-                  {/* Confirm Password */}
-                  <div className="anim-slide-up delay-500 grid gap-1.5">
-                    <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/40">Confirm Password</Label>
-                    <div className="relative">
-                      <Input id="confirmPassword" type={showConfirm ? "text" : "password"} placeholder="••••••••"
-                        className={`glow-input h-12 rounded-xl bg-white/4 text-white placeholder:text-white/20 pr-12 focus-visible:ring-0 transition-all ${
-                          fv.confirmPassword?.length > 0
-                            ? passwordsMatch ? "border-green-500/30" : "border-red-500/30"
-                            : "border-white/8"
-                        }`}
-                        {...form.register("confirmPassword")} />
-                      <button type="button" onClick={() => setShowConfirm(s => !s)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-white/25 transition-all hover:text-white/60">
-                        {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
+                      {sm && (
+                        <p className={`text-[10px] font-bold ${sm.text}`}>
+                          Password strength: {sm.label}
+                        </p>
+                      )}
+                      {/* Rule checklist */}
+                      <div className="grid grid-cols-2 gap-1">
+                        {ruleResults.map(({ id, label, passed }) => (
+                          <div key={id} className="flex items-center gap-1.5">
+                            {passed
+                              ? <Check className="h-3 w-3 text-green-500 shrink-0" />
+                              : <X     className="h-3 w-3 text-[#B0B4C8] shrink-0" />
+                            }
+                            <span className={`text-[10px] ${passed ? "text-[#1B1C22]" : "text-[#B0B4C8]"}`}>
+                              {label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    {fv.confirmPassword?.length > 0 && (
-                      <p className={`flex items-center gap-1 text-xs ${passwordsMatch ? "text-green-400" : "text-red-400"}`}>
-                        {passwordsMatch
-                          ? <><Check className="h-3 w-3" strokeWidth={3}/> Passwords match</>
-                          : <><X className="h-3 w-3" strokeWidth={3}/> Passwords do not match</>}
-                      </p>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div className="grid gap-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#8E92A4]">Confirm Password</Label>
+                  <div className="relative">
+                    <Input
+                      type={showConfirm ? "text" : "password"}
+                      autoComplete="new-password"
+                      placeholder="password"
+                      className={`h-12 rounded-xl bg-[#F4F5F7] pr-12 text-[#1B1C22] placeholder:text-[#B0B4C8] transition-all focus-visible:ring-[3px] ${
+                        fv.confirmPassword?.length > 0
+                          ? passwordsMatch
+                            ? "border-green-400 focus-visible:border-green-500 focus-visible:ring-green-500/10"
+                            : "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-500/10"
+                          : "border-[#E4E6EF] focus-visible:border-[#5243F0] focus-visible:ring-[#5243F0]/10"
+                      }`}
+                      {...form.register("confirmPassword")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(s => !s)}
+                      aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#B0B4C8] transition-colors hover:text-[#5243F0]"
+                    >
+                      {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {form.formState.errors.confirmPassword && (
+                    <p className="text-xs text-red-500">{form.formState.errors.confirmPassword.message}</p>
+                  )}
+                  {/* Live match indicator */}
+                  {fv.confirmPassword?.length > 0 && (
+                    <p className={`flex items-center gap-1 text-[10px] font-bold ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
+                      {passwordsMatch
+                        ? <><Check className="h-3 w-3" /> Passwords match</>
+                        : <><X     className="h-3 w-3" /> Passwords do not match</>
+                      }
+                    </p>
+                  )}
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="mt-1 h-12 w-full rounded-xl bg-[#5243F0] text-sm font-bold text-white shadow-[0_4px_16px_rgba(82,67,240,0.35)] transition-all hover:bg-[#4537D6] hover:shadow-[0_6px_24px_rgba(82,67,240,0.45)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0"
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    {loading ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        Creating account...
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="h-4 w-4" />
+                        Create Account
+                      </>
                     )}
-                  </div>
+                  </span>
+                </button>
 
-                  {/* Submit */}
-                  <div className="anim-slide-up delay-600">
-                    <button type="submit" disabled={!canSubmit}
-                      className="aurora-btn mt-1 h-13 w-full rounded-xl py-3 text-sm font-bold text-white disabled:opacity-30 disabled:cursor-not-allowed">
-                      <span className="flex items-center justify-center gap-2">
-                        {loading ? (
-                          <>
-                            <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                            Creating account...
-                          </>
-                        ) : (
-                          <><UserPlus className="h-4 w-4" /> Create Account</>
-                        )}
-                      </span>
-                    </button>
-                  </div>
+                {/* Footer */}
+                <p className="pt-1 text-center text-xs text-[#8E92A4]">
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setLocation("/login")}
+                    className="font-semibold text-[#5243F0] transition-colors hover:text-[#4537D6]"
+                  >
+                    Sign in instead
+                  </button>
+                </p>
 
-                  {/* Footer */}
-                  <div className="flex items-center justify-between text-xs text-white/30 pt-1">
-                    <button type="button" onClick={() => setLocation("/login")}
-                      className="transition-colors hover:text-violet-400">
-                      Already have an account?
-                    </button>
-                    <button type="button" onClick={() => { auth.login("Guest", null); setLocation("/board"); }}
-                      className="transition-colors hover:text-violet-400">
-                      Continue as guest →
-                    </button>
-                  </div>
-
-                </form>
-              </div>
+              </form>
             </div>
-          </TiltCard>
+          </div>
 
         </div>
       </div>

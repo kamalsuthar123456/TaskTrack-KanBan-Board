@@ -1,7 +1,8 @@
-import express from "express";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import express from "express";
 import User from "../models/User.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -35,6 +36,16 @@ router.post("/login", async (req, res) => {
     res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch (err) {
     console.error("Login error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/me", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ id: user._id, name: user.name, email: user.email });
+  } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
 });

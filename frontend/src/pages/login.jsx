@@ -4,29 +4,28 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, LogIn, Zap, Shield, RefreshCw, Layers } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Input }    from "@/components/ui/input";
+import { Label }    from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { auth } from "@/state/auth";
-import ParticleField from "@/components/ParticleField";
-import TiltCard from "@/components/TiltCard";
+import { auth }     from "@/state/auth";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const schema = z.object({
   identifier: z.string().min(1, "Enter your email"),
-  password: z.string().min(1, "Enter your password"),
+  password:   z.string().min(1, "Enter your password"),
 });
 
-const features = [
-  { icon: Zap,       text: "Seamless drag-and-drop workflow", desc: "Move tasks across columns instantly" },
-  { icon: RefreshCw, text: "Instant real-time updates",       desc: "All changes sync live across devices"  },
-  { icon: Shield,    text: "Smart auto-recovery on errors",   desc: "Never lose progress, ever"             },
+const FEATURES = [
+  { icon: Zap,       text: "Seamless drag-and-drop workflow", desc: "Move tasks across columns instantly"  },
+  { icon: RefreshCw, text: "Instant real-time updates",       desc: "All changes sync live across devices" },
+  { icon: Shield,    text: "Smart auto-recovery on errors",   desc: "Never lose progress, ever"            },
 ];
 
 export default function LoginPage() {
-  const [, setLocation] = useLocation();
-  const { toast } = useToast();
-  const [show, setShow] = useState(false);
+  const [, setLocation]       = useLocation();
+  const { toast }             = useToast();
+  const [show, setShow]       = useState(false);
   const [loading, setLoading] = useState(false);
 
   const form = useForm({
@@ -37,205 +36,242 @@ export default function LoginPage() {
   const onSubmit = async (values) => {
     setLoading(true);
     try {
-      const res = await fetch("http://192.168.56.1:5000/api/auth/login", {
-        method: "POST",
+      const res  = await fetch(`${API_URL}/auth/login`, {
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: values.identifier, password: values.password }),
+        body: JSON.stringify({ identifier: values.identifier.trim(), password: values.password }),
       });
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: "Login failed", description: data.message || "Invalid credentials", variant: "destructive" });
+        // ── STEP 6: destructive = rose/red tone ───────────────────────────
+        toast({
+          title:       "Login failed",
+          description: data.message || "Invalid credentials. Please check your email and password.",
+          variant:     "destructive",
+        });
         return;
       }
-      auth.login(data.user.email, data.token);
-      toast({ title: "Welcome back 👋", description: `Signed in as ${data.user.email}` });
+      auth.login(data.token, data.user);
+      // ── STEP 7: success = emerald/green tone ──────────────────────────
+      toast({
+        title:       "Welcome back 👋",
+        description: `${data.user.email}`,
+        variant:     "success",
+      });
       setLocation("/board");
     } catch {
-      toast({ title: "Connection Error", description: "Could not reach server.", variant: "destructive" });
+      // ── STEP 8: connection error = destructive ────────────────────────
+      toast({
+        title:       "Connection Error",
+        description: "Could not reach the server. Make sure the backend is running.",
+        variant:     "destructive",
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  // ── STEP 10: guest = default/info tone ──────────────────────────────────
+  const handleGuestContinue = () => {
+    sessionStorage.setItem("guest", "true");
+    toast({
+      title:       "Continuing as guest",
+      description: "Some features may be limited without an account.",
+      variant:     "default",
+    });
+    setTimeout(() => setLocation("/board"), 800);
   };
 
   const fv = form.watch();
   const canSubmit = fv.identifier?.trim().length > 0 && fv.password?.trim().length > 0 && !loading;
 
   return (
-    <div className="relative min-h-screen grid-bg overflow-hidden">
+    <div className="min-h-screen bg-[#F4F5F7] flex items-center justify-center px-4 py-10">
 
-      {/* Particle background */}
-      <div className="absolute inset-0">
-        <ParticleField />
+      {/* Subtle background blobs */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-32 -left-32 h-[500px] w-[500px] rounded-full bg-violet-200/40 blur-[100px]" />
+        <div className="absolute -bottom-32 -right-32 h-[400px] w-[400px] rounded-full bg-indigo-200/40 blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[300px] w-[300px] rounded-full bg-purple-100/50 blur-[80px]" />
       </div>
 
-      {/* Perspective grid overlay */}
-      <div className="absolute inset-0 perspective-grid opacity-40" />
+      <div className="relative z-10 mx-auto w-full max-w-5xl">
+        <div className="grid w-full gap-8 lg:grid-cols-2 lg:items-center">
 
-      {/* Glow orbs */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="glow-orb   absolute -top-40  -left-40  h-[500px] w-[500px] rounded-full bg-violet-700/20 blur-[80px]" />
-        <div className="glow-orb-2 absolute -bottom-40 -right-40 h-[400px] w-[400px] rounded-full bg-indigo-700/20 blur-[80px]" />
-        <div className="glow-orb-3 absolute top-1/3 right-1/3 h-[300px] w-[300px] rounded-full bg-purple-700/10 blur-[60px]" />
-      </div>
-
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-10">
-        <div className="grid w-full gap-10 lg:grid-cols-2 lg:items-center">
-
-          {/* ── LEFT PANEL ── */}
-          <TiltCard className="hidden lg:block anim-slide-right delay-100">
-            <div className="spin-border relative rounded-3xl bg-[#080c1a]/80 p-8 backdrop-blur-2xl shadow-soft">
-
-              {/* Inner gradient shimmer */}
-              <div className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-br from-violet-600/8 via-transparent to-indigo-600/8" />
-
-              {/* Logo row */}
+          {/* ── LEFT: Feature Panel ── */}
+          <div className="hidden lg:block anim-slide-right delay-100">
+            <div className="relative overflow-hidden rounded-3xl bg-[#5243F0] p-8 shadow-[0_24px_64px_rgba(82,67,240,0.35)]">
+              <div className="pointer-events-none absolute -top-20 -right-20 h-64 w-64 rounded-full bg-white/10" />
+              <div className="pointer-events-none absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-white/10" />
               <div className="relative flex items-center gap-4">
-                <div className="spin-border float-anim relative grid h-16 w-16 place-items-center rounded-2xl bg-violet-950/80">
-                  <Layers className="icon-glow h-8 w-8 text-violet-300" strokeWidth={1.5} />
+                <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/20 ring-1 ring-white/30">
+                  <Layers className="h-7 w-7 text-white" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h2 className="shimmer-text font-display text-4xl font-black leading-none tracking-tight">
-                    Kanban Board
-                  </h2>
-                  <p className="mt-1 text-sm text-white/40">Real-time collaborative task management</p>
+                  <h2 className="text-3xl font-black leading-none tracking-tight text-white">TaskTrack</h2>
+                  <p className="mt-1 text-sm text-white/60">Real-time collaborative task management</p>
                 </div>
               </div>
-
-              {/* Features */}
-              <div className="mt-8 grid gap-2">
-                {features.map(({ icon: Icon, text, desc }, i) => (
-                  <div
-                    key={text}
-                    className={`feature-row anim-slide-right delay-${(i + 2) * 100} flex items-center gap-4 rounded-2xl border border-white/5 bg-white/2 p-4`}
-                  >
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 ring-1 ring-violet-500/20">
-                      <Icon className="h-5 w-5 text-violet-400" />
+              <div className="mt-8 grid gap-3">
+                {FEATURES.map(({ icon: Icon, text, desc }) => (
+                  <div key={text} className="flex items-center gap-4 rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/20">
+                      <Icon className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white/85">{text}</p>
-                      <p className="text-xs text-white/35 mt-0.5">{desc}</p>
+                      <p className="text-sm font-semibold text-white">{text}</p>
+                      <p className="mt-0.5 text-xs text-white/55">{desc}</p>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Decorative 3D floating cards */}
-              <div className="mt-8 flex gap-2">
-                {["To Do", "In Progress", "Done"].map((label, i) => (
-                  <div
-                    key={label}
-                    className={`float-anim float-anim-delay-${i} flex-1 rounded-xl border border-white/8 bg-white/3 p-3 text-center text-xs text-white/40`}
-                  >
-                    <div className={`mx-auto mb-1.5 h-1.5 w-6 rounded-full ${
-                      i === 0 ? "bg-red-400/50" : i === 1 ? "bg-yellow-400/50" : "bg-green-400/50"
-                    }`} />
+              <div className="relative mt-8 flex gap-2">
+                {[
+                  { label: "To Do",       color: "bg-blue-300"   },
+                  { label: "In Progress", color: "bg-yellow-300" },
+                  { label: "Done",        color: "bg-green-300"  },
+                ].map(({ label, color }) => (
+                  <div key={label} className="flex-1 rounded-xl bg-white/10 p-3 text-center text-xs text-white/70">
+                    <div className={`mx-auto mb-1.5 h-1.5 w-6 rounded-full ${color}`} />
                     {label}
                   </div>
                 ))}
               </div>
             </div>
-          </TiltCard>
+          </div>
 
-          {/* ── RIGHT PANEL ── */}
-          <TiltCard className="anim-slide-up delay-200">
-            <div className="spin-border relative rounded-3xl bg-[#080c1a]/90 p-7 backdrop-blur-2xl shadow-soft">
-              <div className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-b from-violet-500/5 to-transparent" />
+          {/* ── RIGHT: Login Form ── */}
+          <div className="anim-slide-up delay-200">
+            <div className="rounded-3xl border border-[#E4E6EF] bg-white p-8 shadow-[0_8px_40px_rgba(0,0,0,0.08)]">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h1 className="text-3xl font-black tracking-tight text-[#1B1C22]">Sign in</h1>
+                  <p className="mt-1.5 text-sm text-[#8E92A4]">
+                    Access your workspace and continue where you left off.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLocation("/")}
+                  className="rounded-xl border border-[#E4E6EF] bg-[#F4F5F7] px-4 py-2 text-xs font-medium text-[#8E92A4] transition-all hover:border-[#5243F0] hover:text-[#5243F0]"
+                >
+                  ← Back
+                </button>
+              </div>
 
-              <div className="relative">
-                {/* Header */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h1 className="shimmer-text font-display text-4xl font-black tracking-tight">Sign in</h1>
-                    <p className="mt-1.5 text-sm text-white/40">Access your workspace and continue where you left off.</p>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 grid gap-5" noValidate>
+
+                {/* Email */}
+                <div className="grid gap-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#8E92A4]">
+                    Email Address
+                  </Label>
+                  <Input
+                    type="email"
+                    autoComplete="email"
+                    placeholder="kamal008@example.com"
+                    className="h-12 rounded-xl border-[#E4E6EF] bg-[#F4F5F7] text-[#1B1C22] placeholder:text-[#B0B4C8] focus-visible:border-[#5243F0] focus-visible:ring-[3px] focus-visible:ring-[#5243F0]/10"
+                    {...form.register("identifier")}
+                  />
+                  {form.formState.errors.identifier && (
+                    <p className="text-xs text-red-500">{form.formState.errors.identifier.message}</p>
+                  )}
+                </div>
+
+                {/* Password */}
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#8E92A4]">
+                      Password
+                    </Label>
+                    {/* ── STEP 9: warning tone for "coming soon" ── */}
+                    <button
+                      type="button"
+                      onClick={() => toast({
+                        title:       "Coming soon",
+                        description: "Password reset via email will be available soon.",
+                        variant:     "warning",
+                      })}
+                      className="text-[10px] font-medium text-[#5243F0]/70 transition-colors hover:text-[#5243F0]"
+                    >
+                      Forgot password?
+                    </button>
                   </div>
+                  <div className="relative">
+                    <Input
+                      type={show ? "text" : "password"}
+                      autoComplete="current-password"
+                      placeholder="password"
+                      className="h-12 rounded-xl border-[#E4E6EF] bg-[#F4F5F7] pr-12 text-[#1B1C22] placeholder:text-[#B0B4C8] focus-visible:border-[#5243F0] focus-visible:ring-[3px] focus-visible:ring-[#5243F0]/10"
+                      {...form.register("password")}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShow(s => !s)}
+                      aria-label={show ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#B0B4C8] transition-colors hover:text-[#5243F0]"
+                    >
+                      {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {form.formState.errors.password && (
+                    <p className="text-xs text-red-500">{form.formState.errors.password.message}</p>
+                  )}
+                </div>
+
+                {/* Remember me */}
+                <label className="flex w-fit cursor-pointer items-center gap-2 group">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-[#E4E6EF] bg-[#F4F5F7] text-[#5243F0] focus:ring-[#5243F0]/30"
+                  />
+                  <span className="text-xs text-[#8E92A4] transition-colors group-hover:text-[#1B1C22]">
+                    Remember me
+                  </span>
+                </label>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="mt-1 h-12 w-full rounded-xl bg-[#5243F0] text-sm font-bold text-white shadow-[0_4px_16px_rgba(82,67,240,0.35)] transition-all hover:bg-[#4537D6] hover:shadow-[0_6px_24px_rgba(82,67,240,0.45)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0"
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    {loading ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        Signing in...
+                      </>
+                    ) : (
+                      <>
+                        <LogIn className="h-4 w-4" />
+                        Login to Workspace
+                      </>
+                    )}
+                  </span>
+                </button>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between pt-1 text-xs text-[#8E92A4]">
                   <button
-                    onClick={() => setLocation("/")}
-                    className="rounded-xl border border-white/8 bg-white/4 px-4 py-2 text-xs text-white/50 transition-all hover:bg-white/8 hover:text-white"
+                    type="button"
+                    onClick={() => setLocation("/register")}
+                    className="transition-colors hover:text-[#5243F0]"
                   >
-                    ← Back
+                    Create an account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleGuestContinue}
+                    className="transition-colors hover:text-[#5243F0]"
+                  >
+                    Continue as guest →
                   </button>
                 </div>
 
-                <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 grid gap-5">
-
-                  {/* Email */}
-                  <div className="anim-slide-up delay-300 grid gap-2">
-                    <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/40">
-                      Email Address
-                    </Label>
-                    <Input
-                      id="identifier"
-                      placeholder="kamal@email.com"
-                      className="glow-input h-12 rounded-xl border-white/8 bg-white/4 text-white placeholder:text-white/20 focus-visible:border-violet-500/40 focus-visible:ring-0"
-                      {...form.register("identifier")}
-                    />
-                    {form.formState.errors.identifier?.message && (
-                      <p className="text-xs text-red-400">{String(form.formState.errors.identifier.message)}</p>
-                    )}
-                  </div>
-
-                  {/* Password */}
-                  <div className="anim-slide-up delay-400 grid gap-2">
-                    <Label className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/40">
-                      Password
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={show ? "text" : "password"}
-                        placeholder="••••••••"
-                        className="glow-input h-12 rounded-xl border-white/8 bg-white/4 text-white placeholder:text-white/20 pr-12 focus-visible:border-violet-500/40 focus-visible:ring-0"
-                        {...form.register("password")}
-                      />
-                      <button type="button" onClick={() => setShow(s => !s)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-white/25 transition-all hover:text-white/60">
-                        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {form.formState.errors.password?.message && (
-                      <p className="text-xs text-red-400">{String(form.formState.errors.password.message)}</p>
-                    )}
-                  </div>
-
-                  {/* Submit */}
-                  <div className="anim-slide-up delay-500">
-                    <button
-                      type="submit"
-                      disabled={!canSubmit}
-                      className="aurora-btn relative mt-1 h-13 w-full rounded-xl py-3 text-sm font-bold text-white disabled:opacity-30 disabled:cursor-not-allowed disabled:animation-none"
-                    >
-                      <span className="relative flex items-center justify-center gap-2">
-                        {loading ? (
-                          <>
-                            <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                            Signing in...
-                          </>
-                        ) : (
-                          <>
-                            <LogIn className="h-4 w-4" />
-                            Login to Workspace
-                          </>
-                        )}
-                      </span>
-                    </button>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="anim-slide-up delay-600 flex items-center justify-between text-xs text-white/30 pt-1">
-                    <button type="button" onClick={() => setLocation("/register")}
-                      className="transition-colors hover:text-violet-400">
-                      Create an account
-                    </button>
-                    <button type="button" onClick={() => { auth.login("Guest", null); setLocation("/board"); }}
-                      className="transition-colors hover:text-violet-400">
-                      Continue as guest →
-                    </button>
-                  </div>
-
-                </form>
-              </div>
+              </form>
             </div>
-          </TiltCard>
+          </div>
 
         </div>
       </div>

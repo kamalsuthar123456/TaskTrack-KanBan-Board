@@ -1,41 +1,74 @@
-const KEY = "krypton_kanban_auth_v1";
-
-function read() {
+function parseTokenPayload(token) {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    if (!parsed.identifier || typeof parsed.identifier !== "string") return null;
-    return parsed;
+    const base64 = token.split('.')[1];
+    return JSON.parse(atob(base64));
   } catch {
     return null;
   }
 }
 
-function write(value) {
-  localStorage.setItem(KEY, JSON.stringify(value));
+let _user = null;
+
+const _savedToken = localStorage.getItem('tt_token');
+if (_savedToken) {
+  const payload = parseTokenPayload(_savedToken);
+  if (payload && payload.exp * 1000 > Date.now()) {
+    _user = { id: payload.id };
+  } else {
+    localStorage.removeItem('tt_token');
+  }
 }
 
 export const auth = {
-  isAuthenticated() {
-    return !!read();
+  login(token, user) {
+    localStorage.setItem('tt_token', token);
+    _user = user;
   },
-  getUser() {
-    return read();
-  },
-  // ✅ Now accepts token too and stores it
-  login(identifier, token = null) {
-    const user = { identifier: (identifier || "").trim(), loggedInAt: Date.now() };
-    write(user);
-    if (token) localStorage.setItem("token", token);
-    return user;
-  },
+
   logout() {
-    localStorage.removeItem(KEY);
-    localStorage.removeItem("token");
+    localStorage.removeItem('tt_token');
+    _user = null;
   },
+
+  isAuthenticated() {
+    const token = localStorage.getItem('tt_token');
+    if (!token) return false;
+    const payload = parseTokenPayload(token);
+    return !!(payload && payload.exp * 1000 > Date.now());
+  },
+
+  getUser() {
+    return _user;
+  },
+
   getToken() {
-    return localStorage.getItem("token");
+    return localStorage.getItem('tt_token');
+  },
+
+  
+  async rehydrate() {
+    const token = localStorage.getItem('tt_token');
+    if (!token) return false;
+
+    const payload = parseTokenPayload(token);
+    if (!payload || payload.exp * 1000 <= Date.now()) {
+      this.logout();
+      return false;
+    }
+
+    try {
+      const res = await fetch(
+        `${'http://localhost:5000/api'}/auth/me`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) {
+        this.logout();
+        return false;
+      }
+      _user = await res.json();
+      return true;
+    } catch {
+      return true;
+    }
   },
 };
